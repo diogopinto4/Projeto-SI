@@ -1,0 +1,43 @@
+services:
+  openfire:
+    image: nasqueron/openfire:latest
+    platform: linux/amd64
+    container_name: openfire_asm
+    restart: unless-stopped
+    ports:
+      - "9090:9090"    # admin console
+      - "5222:5222"    # XMPP client connections (agentes SPADE)
+    volumes:
+      - openfire_data:/var/lib/openfire
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9090/login.jsp > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  db:
+    image: postgres:16
+    container_name: products-db
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-products_db}
+      TZ: Europe/Lisbon
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-products_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  openfire_data:
